@@ -1,0 +1,81 @@
+name: Apply Pre-commit Fixes
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version for pre-commit'
+        type: string
+        default: '3.x'
+      pr-title:
+        description: 'Title for the auto-fix PR'
+        type: string
+        default: 'Fix whitespace issues'
+      pr-body:
+        description: 'Body for the auto-fix PR'
+        type: string
+        default: 'This PR automatically applies whitespace fixes.'
+
+jobs:
+  precommit:
+    name: Apply pre-commit fixes
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'TYPO3-Documentation'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '${{ inputs.python-version }}'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit hooks and apply fixes
+        id: pre-commit
+        run: |
+          pre-commit run --all-files --hook-stage=manual --show-diff-on-failure || true
+          git diff --exit-code || echo "FIX_NEEDED=true" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for existing PR
+        if: env.FIX_NEEDED == 'true'
+        id: check_pr
+        run: |
+          EXISTING_PR=$(gh pr list --state open --search "${{ inputs.pr-title }}" --json number -q '.[].number')
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "EXISTING_PR=true" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push changes if needed
+        if: env.FIX_NEEDED == 'true' && env.EXISTING_PR != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="fix/whitespace-$(date +'%Y%m%d%H%M%S')"
+          git checkout -b "$BRANCH_NAME"
+          git add .
+          git commit -m "fix: apply whitespace fixes"
+          git push origin "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Open Pull Request
+        if: env.FIX_NEEDED == 'true' && env.EXISTING_PR != 'true'
+        uses: repo-sync/pull-request@7e79a9f5dc3ad0ce53138f01df2fad14a04831c5 # v2.12.1
+        with:
+          source_branch: ${{ env.branch_name }}
+          destination_branch: ${{ github.ref_name }}
+          pr_title: "${{ inputs.pr-title }}"
+          pr_body: "${{ inputs.pr-body }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
