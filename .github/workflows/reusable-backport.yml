@@ -4,9 +4,9 @@ on:
   workflow_call:
     inputs:
       label_pattern:
-        description: 'Label pattern for backport branches (e.g. "backport *")'
+        description: 'Regex pattern to match backport labels. Must contain a capture group for the target branch.'
         type: string
-        default: 'backport *'
+        default: '^backport ([^ ]+)$'
 
 jobs:
   backport:
