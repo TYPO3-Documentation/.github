@@ -22,6 +22,11 @@ jobs:
       contents: write
       pull-requests: write
 
+    if: >
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.merged == true &&
+      contains(toJson(github.event.pull_request.labels), 'backport')
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v 6.0.2
         with:
