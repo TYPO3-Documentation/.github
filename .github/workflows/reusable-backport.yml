@@ -3,7 +3,9 @@ name: Backport
 on:
   workflow_call:
     secrets: 
-      BOT_TOKEN: 
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
         required: true
     inputs:
       label_pattern:
@@ -27,9 +29,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v 6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          
+      - name: Debug token
+        run: echo "Token generated"
       
       - name: Backport
         uses: korthout/backport-action@4aaf0e03a94ff0a619c9a511b61aeb42adea5b02 # v4.2.0
         with:
           label_pattern: ${{ inputs.label_pattern }}
-          github_token: ${{ secrets.BOT_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
