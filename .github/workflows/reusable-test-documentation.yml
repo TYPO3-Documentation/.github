@@ -1,0 +1,32 @@
+name: Test Documentation Rendering
+on:
+  workflow_call:
+    inputs:
+      render-flags:
+        description: 'Additional flags for render-guides (e.g. "--output-format=singlepage --fail-on-log")'
+        type: string
+        default: '--no-progress --minimal-test'
+      schedule-repository:
+        description: 'Repository name to restrict scheduled runs (empty = always run)'
+        type: string
+        default: ''
+
+jobs:
+  render:
+    name: Test documentation
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name != 'schedule' ||
+      inputs.schedule-repository == '' ||
+      github.repository == inputs.schedule-repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test if the documentation will render without warnings
+        run: |
+          mkdir -p Documentation-GENERATED-temp \
+          && docker run --rm --pull always -v $(pwd):/project \
+             ghcr.io/typo3-documentation/render-guides:latest \
+             --config=Documentation \
+             ${{ inputs.render-flags }}
