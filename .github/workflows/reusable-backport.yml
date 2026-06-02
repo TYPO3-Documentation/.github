@@ -2,7 +2,7 @@ name: Backport
 
 on:
   workflow_call:
-    secrets: 
+    secrets:
       APP_ID:
         required: false
       APP_PRIVATE_KEY:
@@ -12,6 +12,14 @@ on:
         description: 'Regex pattern to match backport labels. Must contain a capture group for the target branch.'
         type: string
         default: '^backport ([^ ]+)$'
+      success_label:
+        description: 'Label added to the source PR when all backports succeeded.'
+        type: string
+        default: 'backport successful'
+      failure_label:
+        description: 'Label added to the source PR when one or more backports failed.'
+        type: string
+        default: 'backport failed'
 
 jobs:
   backport:
@@ -21,6 +29,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
 
     if: >
       github.event_name == 'pull_request_target' &&
@@ -38,12 +47,69 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          
-      - name: Debug token
-        run: echo "Token generated"
-      
+
       - name: Backport
+        id: backport
+        continue-on-error: true
         uses: korthout/backport-action@4aaf0e03a94ff0a619c9a511b61aeb42adea5b02 # v4.2.0
         with:
           label_pattern: ${{ inputs.label_pattern }}
           github_token: ${{ steps.app-token.outputs.token }}
+
+      - name: Mark source PR backport result
+        if: always()
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SUCCESS_LABEL: ${{ inputs.success_label }}
+          FAILURE_LABEL: ${{ inputs.failure_label }}
+          BACKPORT_OUTCOME: ${{ steps.backport.outcome }}
+          WAS_SUCCESSFUL: ${{ steps.backport.outputs.was_successful }}
+          WAS_SUCCESSFUL_BY_TARGET: ${{ steps.backport.outputs.was_successful_by_target }}
+          CREATED_PULL_NUMBERS: ${{ steps.backport.outputs.created_pull_numbers }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          gh label create "$SUCCESS_LABEL" \
+            --color "0E8A16" \
+            --description "Backport completed successfully" \
+            2>/dev/null || true
+
+          gh label create "$FAILURE_LABEL" \
+            --color "D93F0B" \
+            --description "Backport failed or needs manual intervention" \
+            2>/dev/null || true
+
+          if [[ "$BACKPORT_OUTCOME" == "success" && "$WAS_SUCCESSFUL" != "false" ]]; then
+            gh pr edit "$PR_NUMBER" \
+              --add-label "$SUCCESS_LABEL" \
+              --remove-label "$FAILURE_LABEL" || true
+
+            echo "Backport succeeded."
+            exit 0
+          fi
+
+          gh pr edit "$PR_NUMBER" \
+            --add-label "$FAILURE_LABEL" \
+            --remove-label "$SUCCESS_LABEL" || true
+
+          cat > /tmp/backport-failed.md <<EOF
+          Backport failed or needs manual intervention.
+
+          **Backport action outcome:** \`${BACKPORT_OUTCOME}\`
+          **Backport success output:** \`${WAS_SUCCESSFUL:-not set}\`
+          **Per target:** \`${WAS_SUCCESSFUL_BY_TARGET:-not set}\`
+          **Created backport PRs:** \`${CREATED_PULL_NUMBERS:-none}\`
+
+          Workflow run: ${RUN_URL}
+          EOF
+
+          gh pr comment "$PR_NUMBER" --body-file /tmp/backport-failed.md
+
+      - name: Fail workflow if backport failed
+        if: >
+          always() &&
+          (steps.backport.outcome != 'success' || steps.backport.outputs.was_successful == 'false')
+        run: exit 1
