@@ -15,11 +15,11 @@ on:
       success_label:
         description: 'Label added to the source PR when all backports succeeded.'
         type: string
-        default: 'backport successful'
+        default: 'backport-done'
       failure_label:
         description: 'Label added to the source PR when one or more backports failed.'
         type: string
-        default: 'backport failed'
+        default: 'backport-failed'
 
 jobs:
   backport:
