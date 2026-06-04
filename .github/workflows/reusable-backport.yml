@@ -34,7 +34,9 @@ jobs:
     if: >
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.merged == true &&
-      contains(toJson(github.event.pull_request.labels), 'backport')
+      contains(toJson(github.event.pull_request.labels), 'backport') &&
+      !contains(toJson(github.event.pull_request.labels), inputs.success_label) &&
+      !contains(toJson(github.event.pull_request.labels), inputs.failure_label)
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v 6.0.2
