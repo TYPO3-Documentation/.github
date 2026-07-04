@@ -54,3 +54,33 @@ checks. Falls back to `GITHUB_TOKEN` if neither secret is provided.
 2. Replace the `jobs:` section with a `uses:` call.
 3. Pass inputs via `with:` and secrets via `secrets:`.
 4. Remove inline `permissions:`, `steps:`, and `runs-on:`.
+
+## Quality gate
+
+Every pull request and push to `main` runs a CI gate over the shared
+workflows:
+
+| Check | Tool | Coverage |
+|-------|------|----------|
+| Lint | [actionlint](https://github.com/rhysd/actionlint) | Workflow syntax, expressions, input references, shellcheck on `run:` blocks |
+| Style | [yamllint](https://github.com/adrienverge/yamllint) (`--strict`) | YAML conformance per `.yamllint.yml` |
+| Security | [zizmor](https://docs.zizmor.sh/) | Template injection, credential persistence, token misuse, known-vulnerable actions |
+| Conformance | `.github/scripts/check_conformance.py` | README table ↔ workflow files in sync, `workflow_call`-only triggers, documented inputs |
+
+Python tools are hash-locked in `.github/requirements.txt`; Dependabot keeps
+the action pins and the Python tool versions current (the curl-installed
+actionlint binary is bumped manually).
+
+**Consumer contract:** command-style inputs (`command`, `install-command`,
+`*-command`) are executed as code. Pass only static literals - never
+`github.event.*` data or other untrusted values.
+
+Run the same checks locally before pushing:
+
+```bash
+pip install --require-hashes --only-binary ':all:' -r .github/requirements.txt
+actionlint
+yamllint --strict .github/ .yamllint.yml
+zizmor --no-progress .github/
+python3 .github/scripts/check_conformance.py
+```

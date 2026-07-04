@@ -1,0 +1,22 @@
+version: 2
+
+updates:
+  # Action pins inside the reusable workflows themselves
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+
+  # Hash-locked Python tools used by the CI gate (yamllint, zizmor)
+  - package-ecosystem: "pip"
+    directory: "/.github"
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
