@@ -48,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install PHP
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # 2.37.1
@@ -70,20 +72,22 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
+      # Command inputs are code by contract: they are set in the calling
+      # repository's committed workflow file, the same trust level as the code.
       - name: PHP CS Fixer
         if: inputs.run-cs-fixer
-        run: ${{ inputs.cs-fixer-command }}
+        run: ${{ inputs.cs-fixer-command }} # zizmor: ignore[template-injection]
         env:
           RUN_ENVIRONMENT: ${{ inputs.run-environment }}
 
       - name: PHPStan
         if: inputs.run-phpstan
-        run: ${{ inputs.phpstan-command }}
+        run: ${{ inputs.phpstan-command }} # zizmor: ignore[template-injection]
         env:
           RUN_ENVIRONMENT: ${{ inputs.run-environment }}
 
       - name: XML Lint
         if: inputs.run-xml-lint
-        run: ${{ inputs.xml-lint-command }}
+        run: ${{ inputs.xml-lint-command }} # zizmor: ignore[template-injection]
         env:
           RUN_ENVIRONMENT: ${{ inputs.run-environment }}

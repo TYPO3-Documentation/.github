@@ -15,6 +15,8 @@ jobs:
   render:
     name: Test documentation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: >
       github.event_name != 'schedule' ||
       inputs.schedule-repository == '' ||
@@ -22,11 +24,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Test if the documentation will render without warnings
+        env:
+          RENDER_FLAGS: ${{ inputs.render-flags }}
         run: |
+          # shellcheck disable=SC2086 # RENDER_FLAGS is a flag list, word splitting is intended
           mkdir -p Documentation-GENERATED-temp \
           && docker run --rm --pull always -v "$(pwd)":/project \
              ghcr.io/typo3-documentation/render-guides:latest \
              --config=Documentation \
-             ${{ inputs.render-flags }}
+             $RENDER_FLAGS

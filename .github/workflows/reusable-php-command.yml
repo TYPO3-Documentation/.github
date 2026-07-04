@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install PHP
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # 2.37.1
@@ -52,9 +54,15 @@ jobs:
           restore-keys: php-${{ inputs.php-version }}-composer-
 
       - name: Install dependencies
-        run: composer install ${{ inputs.composer-args }}
+        env:
+          COMPOSER_ARGS: ${{ inputs.composer-args }}
+        run: |
+          # shellcheck disable=SC2086 # COMPOSER_ARGS is a flag list, word splitting is intended
+          composer install $COMPOSER_ARGS
 
+      # Command inputs are code by contract: they are set in the calling
+      # repository's committed workflow file, the same trust level as the code.
       - name: Run command
-        run: ${{ inputs.command }}
+        run: ${{ inputs.command }} # zizmor: ignore[template-injection]
         env:
           RUN_ENVIRONMENT: ${{ inputs.run-environment }}

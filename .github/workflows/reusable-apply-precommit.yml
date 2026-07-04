@@ -58,8 +58,12 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
+      # Credential handling is deliberately unchanged in this write workflow:
+      # validating that peter-evans/create-pull-request pushes purely via its
+      # token input (allowing persist-credentials: false) is a tracked
+      # follow-up.
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # zizmor: ignore[artipacked]
         with:
           token: ${{ steps.app-token.outputs.token }}
 
