@@ -17,6 +17,7 @@ organization without allow-list configuration.
 | `reusable-php-quality.yml` | Available | CS Fixer + PHPStan + XML lint |
 | `reusable-php-tests.yml` | Available | PHP unit/integration test matrix |
 | `reusable-php-command.yml` | Available | Generic PHP + Composer command |
+| `reusable-node-command.yml` | Available | Generic Node.js + npm command |
 
 **Production** = actively used and proven stable across multiple repos.
 **Available** = on main, ready to adopt, not yet used in production.
